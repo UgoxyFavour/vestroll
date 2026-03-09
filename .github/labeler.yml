@@ -1,0 +1,30 @@
+# Labeler configuration
+
+feature:
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*"
+
+fix:
+  - changed-files:
+      - any-glob-to-any-file: "src/**/*"
+    body-contains: "fix"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "docs/**/*"
+
+infrastructure:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - "package.json"
+          - "pnpm-lock.yaml"
+          - "drizzle.config.ts"
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/components/**/*"
+          - "tailwind.config.ts"
