@@ -77,6 +77,14 @@ export const approvalStatusEnum = pgEnum("approval_status", [
 ]);
 export const timeOffTypeEnum = pgEnum("time_off_type", ["paid", "unpaid"]);
 export const signerTypeEnum = pgEnum("signer_type", ["Email", "Passkey"]);
+export const auditEventEnum = pgEnum("audit_event", [
+  "ROLE_CHANGE",
+  "EMAIL_CHANGE",
+  "BIOMETRIC_ENROLLMENT",
+  "PASSWORD_CHANGE",
+  "ACCOUNT_DELETION",
+  "SECURITY_CHANGE",
+]);
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -198,17 +206,21 @@ export const trustedDevices = pgTable("trusted_devices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const sessions = pgTable("sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  refreshTokenHash: varchar("refresh_token_hash", { length: 255 }).notNull(),
-  deviceInfo: text("device_info"),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastUsedAt: timestamp("last_used_at"),
-});
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    refreshTokenHash: varchar("refresh_token_hash", { length: 255 }).notNull(),
+    deviceInfo: text("device_info"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at"), 
+  },
+  (table) => [index("sessions_user_id_idx").on(table.userId)]
+);
 
 export const loginAttempts = pgTable("login_attempts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -469,3 +481,14 @@ export const employeeRelations = relations(employees, (helpers: any) => ({
   }),
   milestones: helpers.many(milestones),
 }));
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  event: auditEventEnum("event").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

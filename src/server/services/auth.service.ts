@@ -1,5 +1,6 @@
 import { db, emailVerifications, users, organizations, loginAttempts, biometricLogs } from "../db";
 import crypto from "crypto";
+import { AuditLogService } from "./audit-log.service";
 import { OTP_EXPIRATION_MINUTES } from "./email-verification.service";
 import { UserService } from "./user.service";
 import { OTPService } from "./otp.service";
@@ -337,6 +338,7 @@ export class AuthService {
     currentPasswordHash: string | null,
     currentPassword: string,
     newPassword: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
   ) {
     if (!currentPasswordHash) {
       throw new BadRequestError(
@@ -368,6 +370,27 @@ export class AuthService {
       .update(users)
       .set({ passwordHash: newPasswordHash, updatedAt: new Date() })
       .where(eq(users.id, userId));
+
+    await AuditLogService.logEvent({
+      userId,
+      event: "PASSWORD_CHANGE",
+      ipAddress: metadata?.ipAddress,
+      userAgent: metadata?.userAgent,
+    });
+  }
+
+  static async enrollBiometrics(
+    userId: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    // Logic for enrolling a new passkey would go here
+    // ...
+
+    await AuditLogService.logBiometricEnrollment({
+      userId,
+      ipAddress: metadata?.ipAddress,
+      userAgent: metadata?.userAgent,
+    });
   }
 
   static async logout(

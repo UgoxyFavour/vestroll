@@ -40,10 +40,12 @@ function validateAvatarUrl(avatarUrl: string | undefined): void {
 
 export class UserService {
   static async findByEmail(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(sql`lower(${users.email}) = ${normalizedEmail}`)
       .limit(1);
 
     return user || null;
@@ -54,12 +56,14 @@ export class UserService {
     lastName: string;
     email: string;
   }) {
+    const normalizedEmail = data.email.toLowerCase().trim();
+
     const [user] = await db
       .insert(users)
       .values({
         firstName: data.firstName,
         lastName: data.lastName,
-        email: data.email,
+        email: normalizedEmail,
         status: "pending_verification",
       })
       .returning();
@@ -77,12 +81,40 @@ export class UserService {
     return user || null;
   }
 
-  static async updateStatus(userId: string, status: UserStatus) {
+  static async update(
+    userId: string,
+    data: Partial<typeof users.$inferInsert>,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    const oldUser = await this.findById(userId);
+    if (!oldUser) return null;
+
     const [updatedUser] = await db
       .update(users)
-      .set({ status, updatedAt: new Date() })
+      .set({ ...data, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
+
+    if (updatedUser) {
+      if (data.email && data.email !== oldUser.email) {
+        await AuditLogService.logEmailChange({
+          userId,
+          oldEmail: oldUser.email,
+          newEmail: updatedUser.email,
+          ipAddress: metadata?.ipAddress,
+          userAgent: metadata?.userAgent,
+        });
+      }
+      if (data.role && data.role !== oldUser.role) {
+        await AuditLogService.logRoleChange({
+          userId,
+          oldRole: oldUser.role || "N/A",
+          newRole: updatedUser.role || "N/A",
+          ipAddress: metadata?.ipAddress,
+          userAgent: metadata?.userAgent,
+        });
+      }
+    }
 
     return updatedUser || null;
   }
