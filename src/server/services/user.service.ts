@@ -38,10 +38,12 @@ function validateAvatarUrl(avatarUrl: string | undefined): void {
 
 export class UserService {
   static async findByEmail(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(sql`lower(${users.email}) = ${normalizedEmail}`)
       .limit(1);
 
     return user || null;
@@ -52,12 +54,14 @@ export class UserService {
     lastName: string;
     email: string;
   }) {
+    const normalizedEmail = data.email.toLowerCase().trim();
+
     const [user] = await db
       .insert(users)
       .values({
         firstName: data.firstName,
         lastName: data.lastName,
-        email: data.email,
+        email: normalizedEmail,
         status: "pending_verification",
       })
       .returning();
