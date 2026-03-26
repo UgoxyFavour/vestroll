@@ -277,6 +277,9 @@ export const employees = pgTable(
     type: employeeTypeEnum("type").notNull(),
     status: employeeStatusEnum("status").default("Active").notNull(),
     avatarUrl: varchar("avatar_url", { length: 512 }),
+    bankName: varchar("bank_name", { length: 255 }),
+    accountNumber: varchar("account_number", { length: 20 }),
+    accountName: varchar("account_name", { length: 255 }),
     userId: uuid("user_id").references(() => users.id, {
       onDelete: "set null",
     }),
