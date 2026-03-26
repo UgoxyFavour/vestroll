@@ -72,6 +72,11 @@ export interface SubmissionResult {
   resultXdr?: string;
 }
 
+export interface LedgerHealth {
+  ledger: number;
+  ledgerAgeSeconds: number;
+}
+
 export class BlockchainService {
   private rpcServer: RpcServer;
   private networkConfig: NetworkConfig;
@@ -389,6 +394,47 @@ export class BlockchainService {
 
   async getLatestLedger() {
     return this.rpcServer.getLatestLedger();
+  }
+
+  async getLedgerHealth(): Promise<LedgerHealth> {
+    const response = await fetch(
+      `${this.networkConfig.horizonUrl}/ledgers?order=desc&limit=1`,
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Horizon returned ${response.status}: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      _embedded?: {
+        records?: Array<{
+          sequence: number | string;
+          closed_at: string;
+        }>;
+      };
+    };
+
+    const latestLedger = data._embedded?.records?.[0];
+
+    if (!latestLedger?.closed_at || latestLedger.sequence == null) {
+      throw new Error("Horizon response missing latest ledger data");
+    }
+
+    const closedAtMs = Date.parse(latestLedger.closed_at);
+
+    if (Number.isNaN(closedAtMs)) {
+      throw new Error("Horizon returned an invalid ledger close time");
+    }
+
+    return {
+      ledger: Number(latestLedger.sequence),
+      ledgerAgeSeconds: Math.max(
+        0,
+        Math.floor((Date.now() - closedAtMs) / 1000),
+      ),
+    };
   }
 
   async isHealthy(): Promise<boolean> {
